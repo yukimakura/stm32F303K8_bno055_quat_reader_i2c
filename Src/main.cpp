@@ -1,18 +1,14 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : main.c
+  * @file           : main.cpp
   * @brief          : Main program body
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2019 yukimakura.
   * All rights reserved.</center></h2>
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************
   */
@@ -23,7 +19,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "BNO055.hpp"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,26 +55,12 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-/* Direct printf to output somewhere */
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
 
-#ifndef __UUID_H
-#define __UUID_H
-//#define STM32_UUID ((uint32_t *)0x1FF0F420)
-#define STM32_UUID ((uint32_t *)UID_BASE)
-#endif //__UUID_H
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(uint8_t ch) {
-	HAL_UART_Transmit(&huart2, &ch, 1, 1);
-    return 0;
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -85,89 +69,58 @@ int __io_putchar(uint8_t ch) {
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-	setbuf(stdout, NULL);
-  /* USER CODE END 1 */
-  
+	/* USER CODE BEGIN 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* USER CODE END 1 */
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* USER CODE END Init */
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE END Init */
 
-  /* USER CODE END SysInit */
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-  MX_I2C1_Init();
-  /* USER CODE BEGIN 2 */
-  printf("Scanning I2C bus:\r\n");
-  	HAL_StatusTypeDef result;
-   	uint8_t i;
-  for (i=1; i<128; i++)
-   	{
-   	  /*
-   	   * the HAL wants a left aligned i2c address
-   	   * &hi2c1 is the handle
-   	   * (uint16_t)(i<<1) is the i2c address left aligned
-   	   * retries 2
-   	   * timeout 2
-   	   */
-   	  result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i<<1), 2, 2);
-   	  if (result != HAL_OK) // HAL_ERROR or HAL_BUSY or HAL_TIMEOUT
-   	  {
-   		  printf("."); // No ACK received at that address
-   	  }
-   	  if (result == HAL_OK)
-   	  {
-   		  printf("0x%X", i); // Received an ACK at that address
-   	  }
-   	}
-   	printf("\n");
+	/* USER CODE BEGIN SysInit */
 
-   	uint16_t address = 0x29;
-   	result = HAL_I2C_IsDeviceReady(&hi2c1,address<<1, 2, 2);
-	if (result != HAL_OK) // HAL_ERROR or HAL_BUSY or HAL_TIMEOUT
-	{
-	  printf("address err"); // No ACK received at that address
-	}
-	if (result == HAL_OK)
-	{
-	  printf("address ok!"); // Received an ACK at that address
-	}
-  /* USER CODE END 2 */
+	/* USER CODE END SysInit */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-	uint8_t bno_readquat_address = 0x20;
-	uint8_t bno_mode_senddata[] = {0x3d,0x08};
-	volatile uint8_t bno_receivedata[16];
-	volatile short quat[4];
-	HAL_I2C_Master_Transmit(&hi2c1, address<<1, bno_mode_senddata, 2, 100);
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
+	MX_I2C1_Init();
+	/* USER CODE BEGIN 2 */
+
+	/* USER CODE END 2 */
+
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+
+	unsigned char address = 0x29;
+	BNO055 bno055(hi2c1,address);
+	QUATERNION q;
+	EULAR e;
+	char sprintbuff[64] = "";
+	unsigned char uartbuff[64];
+
 	while (1)
 	{
-	    HAL_I2C_Master_Transmit(&hi2c1, address<<1, &bno_readquat_address, 1, 100);
-	    HAL_I2C_Master_Receive(&hi2c1, address<<1, bno_receivedata, 8, 100);
-	    quat[0] = bno_receivedata[1] << 8 | bno_receivedata[0];
-		quat[1] = bno_receivedata[3] << 8 | bno_receivedata[2];
-		quat[2] = bno_receivedata[5] << 8 | bno_receivedata[4];
-		quat[3] = bno_receivedata[7] << 8 | bno_receivedata[6];
-
-		printf("%f,%f,%f,%f\n",(float)quat[0]/16384.0,(float)quat[1]/16384.0,(float)quat[2]/16384.0,(float)quat[3]/16384.0);
+//	    q = bno055.get_quaternion();
+//		sprintf(sprintbuff,"%f,%f,%f,%f\n",q.x,q.y,q.z,q.w);
+//		memcpy(uartbuff,sprintbuff,sizeof(sprintbuff));
+		e = bno055.get_eular();//radian
+		sprintf(sprintbuff,"%f,%f,%f\n",e.x,e.y,e.z);
+		memcpy(uartbuff,sprintbuff,sizeof(sprintbuff));
+		HAL_UART_Transmit(&huart2,uartbuff,sizeof(uartbuff),1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
